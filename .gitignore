@@ -82,6 +82,10 @@ apps/ios/*.dSYM.zip
 # provisioning profiles (local)
 apps/ios/*.mobileprovision
 
+# Local scratch files
+rough.txt
+plan.md
+
 # Local untracked files
 .local/
 docs/.local/
