@@ -6,16 +6,10 @@ metadata:
     "openclaw":
       {
         "emoji": "🔍",
-        "requires":
-          {
-            "env":
-              [
-                "OPENAI_API_KEY",
-                "ANTHROPIC_API_KEY",
-              ],
-          },
         "optionalEnv":
           [
+            "OPENAI_API_KEY",
+            "ANTHROPIC_API_KEY",
             "OLLAMA_BASE_URL",
             "CUSTOM_LLM_BASE_URL",
             "CUSTOM_LLM_API_KEY",
