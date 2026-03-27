@@ -1,6 +1,30 @@
 ---
 name: llm-regression-monitor
 description: Use this skill when the user wants to monitor LLM behavior over time and get alerted when outputs change unexpectedly. Triggers on requests like "set up LLM regression monitoring", "alert me when my prompts start behaving differently", "watch my LLM for regressions", "run behavioral tests on my AI outputs on a schedule", or "detect when my model starts drifting". Handles first-time setup, baseline capture, scheduled monitoring, and alert configuration.
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "🔍",
+        "requires":
+          {
+            "env":
+              [
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+              ],
+          },
+        "optionalEnv":
+          [
+            "OLLAMA_BASE_URL",
+            "CUSTOM_LLM_BASE_URL",
+            "CUSTOM_LLM_API_KEY",
+            "ALERT_WHATSAPP_TO",
+            "ALERT_SLACK_WEBHOOK",
+          ],
+        "primaryEnv": "OPENAI_API_KEY",
+      },
+  }
 ---
 
 # LLM Regression Monitor
