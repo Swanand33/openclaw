@@ -1,85 +1,133 @@
 ---
 name: llm-regression-monitor
-description: [TODO: Complete and informative explanation of what the skill does and when to use it. Include WHEN to use this skill - specific scenarios, file types, or tasks that trigger it.]
+description: Use this skill when the user wants to monitor LLM behavior over time and get alerted when outputs change unexpectedly. Triggers on requests like "set up LLM regression monitoring", "alert me when my prompts start behaving differently", "watch my LLM for regressions", "run behavioral tests on my AI outputs on a schedule", or "detect when my model starts drifting". Handles first-time setup, baseline capture, scheduled monitoring, and alert configuration.
 ---
 
-# Llm Regression Monitor
+# LLM Regression Monitor
 
 ## Overview
 
-[TODO: 1-2 sentences explaining what this skill enables]
-
-## Structuring This Skill
-
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
-
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" -> "Reading" -> "Creating" -> "Editing"
-- Structure: ## Overview -> ## Workflow Decision Tree -> ## Step 1 -> ## Step 2...
-
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" -> "Merge PDFs" -> "Split PDFs" -> "Extract Text"
-- Structure: ## Overview -> ## Quick Start -> ## Task Category 1 -> ## Task Category 2...
-
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" -> "Colors" -> "Typography" -> "Features"
-- Structure: ## Overview -> ## Guidelines -> ## Specifications -> ## Usage...
-
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" -> numbered capability list
-- Structure: ## Overview -> ## Core Capabilities -> ### 1. Feature -> ### 2. Feature...
-
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
-
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
-
-## [TODO: Replace with the first main section based on chosen structure]
-
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
-
-## Resources (optional)
-
-Create only the resource directories this skill actually needs. Delete this section if no resources are required.
-
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
-
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
-
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
-
-**Note:** Scripts may be executed without loading into context, but can still be read by Codex for patching or environment adjustments.
-
-### references/
-Documentation and reference material intended to be loaded into context to inform Codex's process and thinking.
-
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
-
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Codex should reference while working.
-
-### assets/
-Files not intended to be loaded into context, but rather used within the output Codex produces.
-
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
-
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
+Automated behavioral regression monitoring for LLM apps. Captures baseline outputs, detects drift on a schedule, and fires WhatsApp or Slack alerts the moment something regresses.
 
 ---
 
-**Not every skill requires all three types of resources.**
+## Workflow Decision Tree
+
+```
+User request
+├── "set up monitoring" / first time    → Full Setup (steps 1–5)
+├── "run the monitor now"               → Step 4 only
+├── "I changed my prompt/model"         → Step 3b (update baseline)
+└── "configure alerts"                  → Step 5
+```
+
+---
+
+## Step 1 — Install
+
+```bash
+pip install llm-behave[semantic] pyyaml requests
+```
+
+---
+
+## Step 2 — Create test_suite.yaml
+
+Create in the project root. Minimal example:
+
+```yaml
+tests:
+  - name: support_response
+    prompt: "A customer says they never received their order. How do you respond?"
+    provider: openai        # openai | anthropic | ollama | custom
+    model: gpt-4o-mini
+    assertions:
+      - type: tone
+        expected: "empathetic"
+    drift:
+      enabled: true
+      threshold: 0.80
+```
+
+Set the API key for the chosen provider:
+```bash
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...   # if using anthropic
+# ollama needs no key
+```
+
+Read `references/test-suite-format.md` for the full field spec.
+Read `references/providers.md` for env vars and Ollama setup.
+
+---
+
+## Step 3 — Capture Baselines
+
+```bash
+python scripts/capture_baseline.py
+```
+
+Saves ground-truth outputs to `.llm_behave_baselines/`. Run once before monitoring begins.
+
+### 3b — Update after intentional prompt/model change
+
+```bash
+# Reset one test
+python scripts/capture_baseline.py --update-baseline <test-name>
+
+# Reset all
+python scripts/capture_baseline.py --force
+```
+
+---
+
+## Step 4 — Run the Monitor
+
+```bash
+python scripts/run_monitor.py
+```
+
+Writes `monitor_report.json`. Exits 0 on all-pass, 1 on any failure (CI-compatible).
+
+---
+
+## Step 5 — Configure Alerts
+
+```bash
+# WhatsApp (requires wacli installed and logged in)
+export ALERT_WHATSAPP_TO="+1234567890"
+
+# Slack
+export ALERT_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+```
+
+Add to `.env` in project root — scripts load it automatically. Send via:
+```bash
+python scripts/send_alert.py
+```
+
+Silent on green runs. Logs every alert to `monitor_alerts.log` regardless.
+
+---
+
+## Step 6 — Schedule with OpenClaw Cron
+
+Confirm the schedule with the user (default: 9am daily), then add:
+
+- **Schedule:** `0 9 * * *`
+- **Command:** `python run_monitor.py && true || python send_alert.py`
+- **Directory:** project root (where `test_suite.yaml` lives)
+
+The `|| send_alert.py` fires only when `run_monitor.py` exits 1 (failures found).
+
+---
+
+## Common Errors
+
+| Error | Fix |
+|---|---|
+| `llm-behave is not installed` | `pip install llm-behave[semantic]` |
+| `OPENAI_API_KEY is not set` | Export key or add to `.env` |
+| `No baseline found` | Run step 3 first |
+| `test_suite.yaml not found` | Create it in project root |
+| LLM call errors in report | API issue — not a regression |
