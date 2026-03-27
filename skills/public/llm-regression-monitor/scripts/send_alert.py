@@ -52,7 +52,7 @@ def format_alert(report: dict) -> str:
     failed = report["failed"]
 
     lines = [
-        f"LLM Regression Detected — {ts_display}",
+        f"LLM Regression Detected - {ts_display}",
         "",
         f"Tests run: {total} | Passed: {passed} | FAILED: {failed}",
         "",
